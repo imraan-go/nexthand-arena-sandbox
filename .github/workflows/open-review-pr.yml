@@ -1,0 +1,39 @@
+name: Open review PR
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: Pull request title
+        default: 'Add a farewell helper'
+      reviewer:
+        description: Who to ask for a review
+        default: 'imraan-go'
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Commit a small change on a new branch
+        run: |
+          branch="arena/pr-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          printf '\nexport function farewell(name: string): string {\n  return `Goodbye, ${name}!`;\n}\n' >> src/greet.ts
+          git commit -am "$TITLE"
+          git push origin "$branch"
+          echo "BRANCH=$branch" >> "$GITHUB_ENV"
+        env:
+          TITLE: ${{ inputs.title }}
+      - name: Open the pull request and request the review
+        run: |
+          url=$(gh pr create --head "$BRANCH" --base main --title "$TITLE" --body "Opened by the Nexthand Arena sandbox. Safe to review, comment on, merge or close.")
+          gh pr edit "$url" --add-reviewer "$REVIEWER"
+          echo "$url"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ inputs.title }}
+          REVIEWER: ${{ inputs.reviewer }}
